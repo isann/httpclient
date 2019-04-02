@@ -16,6 +16,8 @@ type AttachFile struct {
 	Reader    io.Reader
 }
 
+// マルチパートフォームデータを POST で送信します。
+// 画像をリクエストする場合などに使用します。
 func RequestHttpWithFile(requestUrl string, files []AttachFile, postParam map[string]string, proxy string) (*http.Response, error) {
 	var b bytes.Buffer
 	var fw io.Writer
@@ -78,6 +80,27 @@ func RequestHttpWithFile(requestUrl string, files []AttachFile, postParam map[st
 	return client.Do(req)
 }
 
+func Post(requestUrl string, parameters map[string]string, cookies []*http.Cookie,
+	requestHeader map[string]string, rawData []byte, proxy string) (*http.Response, error) {
+	return RequestHttp(requestUrl, "post", parameters, cookies, requestHeader, rawData, proxy)
+}
+
+func Get(requestUrl string, parameters map[string]string, cookies []*http.Cookie,
+	requestHeader map[string]string, rawData []byte, proxy string) (*http.Response, error) {
+	return RequestHttp(requestUrl, "get", parameters, cookies, requestHeader, rawData, proxy)
+}
+
+func Put(requestUrl string, parameters map[string]string, cookies []*http.Cookie,
+	requestHeader map[string]string, rawData []byte, proxy string) (*http.Response, error) {
+	return RequestHttp(requestUrl, "put", parameters, cookies, requestHeader, rawData, proxy)
+}
+
+func Delete(requestUrl string, parameters map[string]string, cookies []*http.Cookie,
+	requestHeader map[string]string, rawData []byte, proxy string) (*http.Response, error) {
+	return RequestHttp(requestUrl, "delete", parameters, cookies, requestHeader, rawData, proxy)
+}
+
+// HTTP Request を行う関数です。
 func RequestHttp(requestUrl string, method string, parameters map[string]string, cookies []*http.Cookie,
 	requestHeader map[string]string, rawData []byte, proxy string) (*http.Response, error) {
 	var req *http.Request
