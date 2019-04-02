@@ -62,20 +62,18 @@ func RequestHttpWithFile(requestUrl string, files []AttachFile, postParam map[st
 	req.Header.Add("Content-Type", w.FormDataContentType())
 	//req.SetBasicAuth("112233", "445566")
 	// 自動リダイレクトのオフ、プロキシ設定
-	var transport *http.Transport
-	if proxy != "" {
-		proxyUrl, err := url.Parse(proxy)
-		if err != nil {
-			return nil, err
-		}
-		transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
-	}
 	client := http.Client{
 		// Go HTTP Client NOT Follow Redirects Automatically.
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
-		Transport: transport,
+	}
+	if proxy != "" {
+		proxyUrl, err := url.Parse(proxy)
+		if err != nil {
+			return nil, err
+		}
+		client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
 	}
 	return client.Do(req)
 }
@@ -133,20 +131,18 @@ func RequestHttp(requestUrl string, method string, parameters map[string]string,
 		}
 	}
 	// 自動リダイレクトのオフ、プロキシ設定
-	var transport *http.Transport
-	if proxy != "" {
-		proxyUrl, err := url.Parse(proxy)
-		if err != nil {
-			return nil, err
-		}
-		transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
-	}
 	client := http.Client{
 		// Go HTTP Client NOT Follow Redirects Automatically.
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
-		Transport: transport,
+	}
+	if proxy != "" {
+		proxyUrl, err := url.Parse(proxy)
+		if err != nil {
+			return nil, err
+		}
+		client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
 	}
 	return client.Do(req)
 }
