@@ -12,6 +12,7 @@ func TestRequestHttpWithFile(t *testing.T) {
 		requestUrl string
 		files      []AttachFile
 		postParam  map[string]string
+		proxy      string
 	}
 	file, err := os.Open("/Users/zono/Desktop/00BFFF.jpg")
 	if err != nil {
@@ -23,11 +24,11 @@ func TestRequestHttpWithFile(t *testing.T) {
 		want    *http.Response
 		wantErr bool
 	}{
-		{"", args{"https://112233:445566@www.zono.xyz/", []AttachFile{{"", "00BFFF.jpg", file}}, map[string]string{"aaa": "bbb"}}, &http.Response{StatusCode: 200}, false},
+		{"", args{"https://112233:445566@www.zono.xyz/", []AttachFile{{"", "00BFFF.jpg", file}}, map[string]string{"aaa": "bbb"}, "http://localhost:8888/"}, &http.Response{StatusCode: 200}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := RequestHttpWithFile(tt.args.requestUrl, tt.args.files, tt.args.postParam)
+			got, err := RequestHttpWithFile(tt.args.requestUrl, tt.args.files, tt.args.postParam, tt.args.proxy)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RequestHttpWithFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -46,21 +47,23 @@ func TestRequestHttp(t *testing.T) {
 	type args struct {
 		requestUrl    string
 		method        string
-		getParam      map[string]string
-		postParam     map[string]string
-		cookie        *http.Cookie
-		isRaw         bool
+		parameters    map[string]string
+		cookies       []*http.Cookie
 		requestHeader map[string]string
+		rawData       []byte
+		proxy         string
 	}
-	var tests []struct {
+	tests := []struct {
 		name    string
 		args    args
 		want    *http.Response
 		wantErr bool
+	}{
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := RequestHttp(tt.args.requestUrl, tt.args.method, tt.args.getParam, tt.args.postParam, tt.args.cookie, tt.args.isRaw, tt.args.requestHeader)
+			got, err := RequestHttp(tt.args.requestUrl, tt.args.method, tt.args.parameters, tt.args.cookies, tt.args.requestHeader, tt.args.rawData, tt.args.proxy)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RequestHttp() error = %v, wantErr %v", err, tt.wantErr)
 				return
