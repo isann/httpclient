@@ -2,7 +2,6 @@ package httpclient
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -17,7 +16,7 @@ type AttachFile struct {
 	Reader    io.Reader
 }
 
-func RequestHttpWithFile(requestUrl string, files []AttachFile, postParam map[string]string) (*http.Response, error) {
+func RequestHttpWithFile(requestUrl string, files []AttachFile, postParam map[string]string, proxy string) (*http.Response, error) {
 	var b bytes.Buffer
 	var fw io.Writer
 	var err error
@@ -63,38 +62,42 @@ func RequestHttpWithFile(requestUrl string, files []AttachFile, postParam map[st
 	req.Header.Add("Content-Type", w.FormDataContentType())
 	//req.SetBasicAuth("112233", "445566")
 	// 自動リダイレクトのオフ、プロキシ設定
-	proxyUrl, err := url.Parse("http://localhost:8888")
+	var transport *http.Transport
+	if proxy != "" {
+		proxyUrl, err := url.Parse(proxy)
+		if err != nil {
+			return nil, err
+		}
+		transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+	}
 	client := http.Client{
 		// Go HTTP Client NOT Follow Redirects Automatically.
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
-		Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl)},
+		Transport: transport,
 	}
 	return client.Do(req)
 }
 
-func requestHttp(requestUrl string, method string, getParam map[string]string,
-	postParam map[string]string, cookie *http.Cookie, isRaw bool,
-	requestHeader map[string]string) (*http.Response, error) {
+func RequestHttp(requestUrl string, method string, parameters map[string]string, cookies []*http.Cookie,
+	requestHeader map[string]string, rawData []byte, proxy string) (*http.Response, error) {
 	var req *http.Request
 	var err error
-	if strings.ToLower(method) == "post" {
-		if isRaw {
-			postData, err := json.Marshal(postParam)
-			if err != nil {
-				return nil, err
+	var data io.Reader
+	values := url.Values{}
+	if rawData != nil {
+		data = bytes.NewReader(rawData)
+	} else {
+		if parameters != nil {
+			for key, val := range parameters {
+				values.Add(key, val)
 			}
-			req, err = http.NewRequest("POST", requestUrl, strings.NewReader(string(postData)))
-		} else {
-			values := url.Values{}
-			if postParam != nil {
-				for key, val := range postParam {
-					values.Add(key, val)
-				}
-			}
-			req, err = http.NewRequest("POST", requestUrl, strings.NewReader(values.Encode()))
 		}
+		data = strings.NewReader(values.Encode())
+	}
+	if strings.ToLower(method) == "post" {
+		req, err = http.NewRequest("POST", requestUrl, data)
 		if err != nil {
 			return nil, err
 		}
@@ -103,14 +106,12 @@ func requestHttp(requestUrl string, method string, getParam map[string]string,
 		if err != nil {
 			return nil, err
 		}
-	}
-	// GET parameter
-	if getParam != nil {
-		values2 := url.Values{}
-		for key, val := range getParam {
-			values2.Add(key, val)
+		req.URL.RawQuery = values.Encode()
+	} else {
+		req, err = http.NewRequest(strings.ToUpper(method), requestUrl, data)
+		if err != nil {
+			return nil, err
 		}
-		req.URL.RawQuery = values2.Encode()
 	}
 	// Request Header
 	if requestHeader != nil {
@@ -125,17 +126,27 @@ func requestHttp(requestUrl string, method string, getParam map[string]string,
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 	//req.SetBasicAuth("112233", "445566")
-	if cookie != nil {
-		req.AddCookie(cookie)
+	// Cookie
+	if cookies != nil {
+		for _, cookie := range cookies {
+			req.AddCookie(cookie)
+		}
 	}
 	// 自動リダイレクトのオフ、プロキシ設定
-	//proxyUrl, err := url.Parse("http://192.168.20.177:8888")
+	var transport *http.Transport
+	if proxy != "" {
+		proxyUrl, err := url.Parse(proxy)
+		if err != nil {
+			return nil, err
+		}
+		transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+	}
 	client := http.Client{
 		// Go HTTP Client NOT Follow Redirects Automatically.
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
-		//Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl)},
+		Transport: transport,
 	}
 	return client.Do(req)
 }
