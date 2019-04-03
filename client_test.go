@@ -30,7 +30,7 @@ func TestRequestHttpWithFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := RequestHttpWithFile(tt.args.requestUrl, tt.args.files, tt.args.postParam, tt.args.proxy)
+			got, err := RequestHttpWithFile(tt.args.requestUrl, "", tt.args.postParam, nil, nil, tt.args.files, tt.args.proxy)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RequestHttpWithFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
