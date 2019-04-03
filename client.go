@@ -2,7 +2,6 @@ package httpclient
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -16,9 +15,10 @@ type AttachFile struct {
 	Reader    io.Reader
 }
 
-// マルチパートフォームデータを POST で送信します。
+// マルチパートフォームデータで送信します。
 // 画像をリクエストする場合などに使用します。
-func RequestHttpWithFile(requestUrl string, files []AttachFile, postParam map[string]string, proxy string) (*http.Response, error) {
+func RequestHttpWithFile(requestUrl string, method string, parameters map[string]string, cookies []*http.Cookie,
+	requestHeader map[string]string, files []AttachFile, proxy string) (*http.Response, error) {
 	var b bytes.Buffer
 	var fw io.Writer
 	var err error
@@ -37,8 +37,8 @@ func RequestHttpWithFile(requestUrl string, files []AttachFile, postParam map[st
 		}
 	}
 	// Add the other fields
-	if postParam != nil {
-		for key, val := range postParam {
+	if parameters != nil {
+		for key, val := range parameters {
 			if fw, err = w.CreateFormField(key); err != nil {
 				return nil, err
 			}
@@ -56,13 +56,22 @@ func RequestHttpWithFile(requestUrl string, files []AttachFile, postParam map[st
 	}
 
 	// Request を生成
-	req, err := http.NewRequest("POST", requestUrl, &b)
+	req, err := http.NewRequest(method, requestUrl, &b)
 	if err != nil {
-		fmt.Println("requestMsgRegister", err)
 		return nil, err
+	}
+
+	// Request Header
+	setRequestHeaders(requestHeader, req)
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; MAFSJS; rv:11.0) like Gecko")
 	}
 	req.Header.Add("Content-Type", w.FormDataContentType())
 	//req.SetBasicAuth("112233", "445566")
+
+	// Cookie
+	setCookies(cookies, req)
+
 	// 自動リダイレクトのオフ、プロキシ設定
 	client := http.Client{
 		// Go HTTP Client NOT Follow Redirects Automatically.
@@ -80,9 +89,29 @@ func RequestHttpWithFile(requestUrl string, files []AttachFile, postParam map[st
 	return client.Do(req)
 }
 
+func setRequestHeaders(requestHeader map[string]string, req *http.Request) {
+	if requestHeader != nil {
+		for key, val := range requestHeader {
+			req.Header.Add(key, val)
+		}
+	}
+}
+
+func setCookies(cookies []*http.Cookie, req *http.Request) {
+	if cookies != nil {
+		for _, cookie := range cookies {
+			req.AddCookie(cookie)
+		}
+	}
+}
+
 func Post(requestUrl string, parameters map[string]string, cookies []*http.Cookie,
-	requestHeader map[string]string, rawData []byte, proxy string) (*http.Response, error) {
-	return RequestHttp(requestUrl, "post", parameters, cookies, requestHeader, rawData, proxy)
+	requestHeader map[string]string, rawData []byte, files []AttachFile, proxy string) (*http.Response, error) {
+	if files == nil {
+		return RequestHttp(requestUrl, "post", parameters, cookies, requestHeader, rawData, proxy)
+	} else {
+		return RequestHttpWithFile(requestUrl, "post", parameters, cookies, requestHeader, files, proxy)
+	}
 }
 
 func Get(requestUrl string, parameters map[string]string, cookies []*http.Cookie,
@@ -134,12 +163,10 @@ func RequestHttp(requestUrl string, method string, parameters map[string]string,
 			return nil, err
 		}
 	}
+
 	// Request Header
-	if requestHeader != nil {
-		for key, val := range requestHeader {
-			req.Header.Add(key, val)
-		}
-	}
+	setRequestHeaders(requestHeader, req)
+
 	if req.Header.Get("User-Agent") == "" {
 		req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; MAFSJS; rv:11.0) like Gecko")
 	}
@@ -147,13 +174,12 @@ func RequestHttp(requestUrl string, method string, parameters map[string]string,
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 	//req.SetBasicAuth("112233", "445566")
+
 	// Cookie
-	if cookies != nil {
-		for _, cookie := range cookies {
-			req.AddCookie(cookie)
-		}
-	}
+	setCookies(cookies, req)
+
 	// 自動リダイレクトのオフ、プロキシ設定
+	// TODO: cookie jar
 	client := http.Client{
 		// Go HTTP Client NOT Follow Redirects Automatically.
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
