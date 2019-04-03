@@ -110,7 +110,7 @@ func TestPost(t *testing.T) {
 		want    *http.Response
 		wantErr bool
 	}{
-		{"", args{requestUrl, map[string]string{"aaa": "bbb"}, cookies, nil, nil, nil, "http://localhost:8888/"}, &http.Response{StatusCode: 200}, false},
+		{"", args{requestUrl, map[string]string{"aaa": "bbb"}, cookies, nil, nil, nil, ""}, &http.Response{StatusCode: 200}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -129,6 +129,13 @@ func TestPost(t *testing.T) {
 			println(len(tt.args.cookies))
 			cookies := jar.Cookies(setCookieUrl)
 			fmt.Printf("%v\n", cookies)
+
+			cookie := &http.Cookie{Name: "add", Value: "foobar"}
+			ccc := []*http.Cookie{cookie}
+			_, _ = Post(tt.args.requestUrl, tt.args.parameters, ccc, tt.args.requestHeader, tt.args.rawData, tt.args.files, jar, tt.args.proxy)
+			eee := jar.Cookies(setCookieUrl)
+			fmt.Printf("==========********** %v", eee)
+
 			//if !reflect.DeepEqual(got, tt.want) {
 			//	t.Errorf("Post() = %v, want %v", got, tt.want)
 			//}

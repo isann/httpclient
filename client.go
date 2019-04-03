@@ -23,10 +23,14 @@ func setRequestHeaders(requestHeader map[string]string, req *http.Request) {
 	}
 }
 
-func setCookies(cookies []*http.Cookie, req *http.Request) {
+func setCookies(cookies []*http.Cookie, req *http.Request, cookieJar http.CookieJar) {
 	if cookies != nil {
-		for _, cookie := range cookies {
-			req.AddCookie(cookie)
+		if cookieJar != nil {
+			cookieJar.SetCookies(req.URL, cookies)
+		} else {
+			for _, cookie := range cookies {
+				req.AddCookie(cookie)
+			}
 		}
 	}
 }
@@ -105,7 +109,7 @@ func RequestHttpWithFile(requestUrl string, method string, parameters map[string
 	//req.SetBasicAuth("112233", "445566")
 
 	// Cookie
-	setCookies(cookies, req)
+	setCookies(cookies, req, cookieJar)
 
 	// 自動リダイレクトのオフ、プロキシ設定
 	client := http.Client{
@@ -173,7 +177,7 @@ func RequestHttp(requestUrl string, method string, parameters map[string]string,
 	//req.SetBasicAuth("112233", "445566")
 
 	// Cookie
-	setCookies(cookies, req)
+	setCookies(cookies, req, cookieJar)
 
 	// 自動リダイレクトのオフ、プロキシ設定
 	// TODO: cookie jar
