@@ -15,10 +15,45 @@ type AttachFile struct {
 	Reader    io.Reader
 }
 
+func setRequestHeaders(requestHeader map[string]string, req *http.Request) {
+	if requestHeader != nil {
+		for key, val := range requestHeader {
+			req.Header.Add(key, val)
+		}
+	}
+}
+
+func setCookies(cookies []*http.Cookie, req *http.Request) {
+	if cookies != nil {
+		for _, cookie := range cookies {
+			req.AddCookie(cookie)
+		}
+	}
+}
+
+func Post(requestUrl string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, files []AttachFile, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+	if files == nil {
+		return RequestHttp(requestUrl, "post", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
+	} else {
+		return RequestHttpWithFile(requestUrl, "post", parameters, cookies, requestHeader, files, cookieJar, proxy)
+	}
+}
+
+func Get(requestUrl string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+	return RequestHttp(requestUrl, "get", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
+}
+
+func Put(requestUrl string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+	return RequestHttp(requestUrl, "put", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
+}
+
+func Delete(requestUrl string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+	return RequestHttp(requestUrl, "delete", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
+}
+
 // マルチパートフォームデータで送信します。
 // 画像をリクエストする場合などに使用します。
-func RequestHttpWithFile(requestUrl string, method string, parameters map[string]string, cookies []*http.Cookie,
-	requestHeader map[string]string, files []AttachFile, proxy string) (*http.Response, error) {
+func RequestHttpWithFile(requestUrl string, method string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, files []AttachFile, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
 	var b bytes.Buffer
 	var fw io.Writer
 	var err error
@@ -86,52 +121,14 @@ func RequestHttpWithFile(requestUrl string, method string, parameters map[string
 		}
 		client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
 	}
+	if cookieJar != nil {
+		client.Jar = cookieJar
+	}
 	return client.Do(req)
 }
 
-func setRequestHeaders(requestHeader map[string]string, req *http.Request) {
-	if requestHeader != nil {
-		for key, val := range requestHeader {
-			req.Header.Add(key, val)
-		}
-	}
-}
-
-func setCookies(cookies []*http.Cookie, req *http.Request) {
-	if cookies != nil {
-		for _, cookie := range cookies {
-			req.AddCookie(cookie)
-		}
-	}
-}
-
-func Post(requestUrl string, parameters map[string]string, cookies []*http.Cookie,
-	requestHeader map[string]string, rawData []byte, files []AttachFile, proxy string) (*http.Response, error) {
-	if files == nil {
-		return RequestHttp(requestUrl, "post", parameters, cookies, requestHeader, rawData, proxy)
-	} else {
-		return RequestHttpWithFile(requestUrl, "post", parameters, cookies, requestHeader, files, proxy)
-	}
-}
-
-func Get(requestUrl string, parameters map[string]string, cookies []*http.Cookie,
-	requestHeader map[string]string, rawData []byte, proxy string) (*http.Response, error) {
-	return RequestHttp(requestUrl, "get", parameters, cookies, requestHeader, rawData, proxy)
-}
-
-func Put(requestUrl string, parameters map[string]string, cookies []*http.Cookie,
-	requestHeader map[string]string, rawData []byte, proxy string) (*http.Response, error) {
-	return RequestHttp(requestUrl, "put", parameters, cookies, requestHeader, rawData, proxy)
-}
-
-func Delete(requestUrl string, parameters map[string]string, cookies []*http.Cookie,
-	requestHeader map[string]string, rawData []byte, proxy string) (*http.Response, error) {
-	return RequestHttp(requestUrl, "delete", parameters, cookies, requestHeader, rawData, proxy)
-}
-
 // HTTP Request を行う関数です。
-func RequestHttp(requestUrl string, method string, parameters map[string]string, cookies []*http.Cookie,
-	requestHeader map[string]string, rawData []byte, proxy string) (*http.Response, error) {
+func RequestHttp(requestUrl string, method string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
 	var req *http.Request
 	var err error
 	var data io.Reader
@@ -192,6 +189,9 @@ func RequestHttp(requestUrl string, method string, parameters map[string]string,
 			return nil, err
 		}
 		client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+	}
+	if cookieJar != nil {
+		client.Jar = cookieJar
 	}
 	return client.Do(req)
 }
