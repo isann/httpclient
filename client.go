@@ -140,7 +140,8 @@ func RequestHttpWithFile(requestUrl string, method string, parameters map[string
 	return client.Do(req)
 }
 
-// 「application/x-www-form-urlencoded」で送信します。フォームを送信する場合などに使用します。
+// リクエストヘッダ Content-Type の指定がない場合は「application/x-www-form-urlencoded」で送信します。
+// フォームを送信する場合などに使用します。
 // parameters と rawData は互いに排他的で、 rawData が優先されます。
 // rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
 func RequestHttp(requestUrl string, method string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
