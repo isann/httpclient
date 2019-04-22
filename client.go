@@ -35,6 +35,9 @@ func setCookies(cookies []*http.Cookie, req *http.Request, cookieJar http.Cookie
 	}
 }
 
+// POST で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
+// rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
+// ファイルを添付した場合は、「multipart/form-data」 となり、 rawData は参照されません。
 func Post(requestUrl string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, files []AttachFile, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
 	if files == nil {
 		return RequestHttp(requestUrl, "post", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
@@ -43,20 +46,26 @@ func Post(requestUrl string, parameters map[string]string, cookies []*http.Cooki
 	}
 }
 
+// GET で送信します。  rawData は無視され、parameters の値が query string に変換されます。
 func Get(requestUrl string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
 	return RequestHttp(requestUrl, "get", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
 }
 
+// PUT で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
+// rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
 func Put(requestUrl string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
 	return RequestHttp(requestUrl, "put", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
 }
 
+// DELETE で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
+// rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
 func Delete(requestUrl string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
 	return RequestHttp(requestUrl, "delete", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
 }
 
-// マルチパートフォームデータで送信します。
-// 画像をリクエストする場合などに使用します。
+// マルチパートフォームデータ「multipart/form-data」で送信します。画像をリクエストする場合などに使用します。
+// parameters と rawData は互いに排他的で、 rawData が優先されます。
+// rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
 func RequestHttpWithFile(requestUrl string, method string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, files []AttachFile, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
 	var b bytes.Buffer
 	var fw io.Writer
@@ -131,7 +140,9 @@ func RequestHttpWithFile(requestUrl string, method string, parameters map[string
 	return client.Do(req)
 }
 
-// HTTP Request を行う関数です。
+// 「application/x-www-form-urlencoded」で送信します。フォームを送信する場合などに使用します。
+// parameters と rawData は互いに排他的で、 rawData が優先されます。
+// rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
 func RequestHttp(requestUrl string, method string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
 	var req *http.Request
 	var err error
@@ -180,7 +191,6 @@ func RequestHttp(requestUrl string, method string, parameters map[string]string,
 	setCookies(cookies, req, cookieJar)
 
 	// 自動リダイレクトのオフ、プロキシ設定
-	// TODO: cookie jar
 	client := http.Client{
 		// Go HTTP Client NOT Follow Redirects Automatically.
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
