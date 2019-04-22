@@ -38,35 +38,35 @@ func setCookies(cookies []*http.Cookie, req *http.Request, cookieJar http.Cookie
 // POST で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
 // rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
 // ファイルを添付した場合は、「multipart/form-data」 となり、 rawData は参照されません。
-func Post(requestUrl string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, files []AttachFile, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+func Post(requestURL string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, files []AttachFile, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
 	if files == nil {
-		return RequestHttp(requestUrl, "post", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
+		return RequestHttp(requestURL, "post", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
 	} else {
-		return RequestHttpWithFile(requestUrl, "post", parameters, cookies, requestHeader, files, cookieJar, proxy)
+		return RequestHttpWithFile(requestURL, "post", parameters, cookies, requestHeader, files, cookieJar, proxy)
 	}
 }
 
 // GET で送信します。  rawData は無視され、parameters の値が query string に変換されます。
-func Get(requestUrl string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
-	return RequestHttp(requestUrl, "get", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
+func Get(requestURL string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+	return RequestHttp(requestURL, "get", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
 }
 
 // PUT で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
 // rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
-func Put(requestUrl string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
-	return RequestHttp(requestUrl, "put", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
+func Put(requestURL string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+	return RequestHttp(requestURL, "put", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
 }
 
 // DELETE で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
 // rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
-func Delete(requestUrl string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
-	return RequestHttp(requestUrl, "delete", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
+func Delete(requestURL string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+	return RequestHttp(requestURL, "delete", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
 }
 
 // マルチパートフォームデータ「multipart/form-data」で送信します。画像をリクエストする場合などに使用します。
 // parameters と rawData は互いに排他的で、 rawData が優先されます。
 // rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
-func RequestHttpWithFile(requestUrl string, method string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, files []AttachFile, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+func RequestHttpWithFile(requestURL string, method string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, files []AttachFile, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
 	var b bytes.Buffer
 	var fw io.Writer
 	var err error
@@ -104,7 +104,7 @@ func RequestHttpWithFile(requestUrl string, method string, parameters map[string
 	}
 
 	// Request を生成
-	req, err := http.NewRequest(method, requestUrl, &b)
+	req, err := http.NewRequest(method, requestURL, &b)
 	if err != nil {
 		return nil, err
 	}
@@ -128,11 +128,11 @@ func RequestHttpWithFile(requestUrl string, method string, parameters map[string
 		},
 	}
 	if proxy != "" {
-		proxyUrl, err := url.Parse(proxy)
+		proxyURL, err := url.Parse(proxy)
 		if err != nil {
 			return nil, err
 		}
-		client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+		client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyURL)}
 	}
 	if cookieJar != nil {
 		client.Jar = cookieJar
@@ -144,7 +144,7 @@ func RequestHttpWithFile(requestUrl string, method string, parameters map[string
 // フォームを送信する場合などに使用します。
 // parameters と rawData は互いに排他的で、 rawData が優先されます。
 // rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
-func RequestHttp(requestUrl string, method string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+func RequestHttp(requestURL string, method string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
 	var req *http.Request
 	var err error
 	var data io.Reader
@@ -160,18 +160,18 @@ func RequestHttp(requestUrl string, method string, parameters map[string]string,
 		data = strings.NewReader(values.Encode())
 	}
 	if strings.ToLower(method) == "post" {
-		req, err = http.NewRequest("POST", requestUrl, data)
+		req, err = http.NewRequest("POST", requestURL, data)
 		if err != nil {
 			return nil, err
 		}
 	} else if strings.ToLower(method) == "get" {
-		req, err = http.NewRequest("GET", requestUrl, nil)
+		req, err = http.NewRequest("GET", requestURL, nil)
 		if err != nil {
 			return nil, err
 		}
 		req.URL.RawQuery = values.Encode()
 	} else {
-		req, err = http.NewRequest(strings.ToUpper(method), requestUrl, data)
+		req, err = http.NewRequest(strings.ToUpper(method), requestURL, data)
 		if err != nil {
 			return nil, err
 		}
@@ -199,11 +199,11 @@ func RequestHttp(requestUrl string, method string, parameters map[string]string,
 		},
 	}
 	if proxy != "" {
-		proxyUrl, err := url.Parse(proxy)
+		proxyURL, err := url.Parse(proxy)
 		if err != nil {
 			return nil, err
 		}
-		client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+		client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyURL)}
 	}
 	if cookieJar != nil {
 		client.Jar = cookieJar
