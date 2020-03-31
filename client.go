@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"bytes"
+	"crypto/tls"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -15,6 +16,10 @@ type AttachFile struct {
 	FileName  string
 	Reader    io.Reader
 }
+
+var (
+	InsecureSkipVerify bool
+)
 
 func setRequestHeaders(requestHeader map[string]string, req *http.Request) {
 	if requestHeader != nil {
@@ -34,6 +39,55 @@ func setCookies(cookies []*http.Cookie, req *http.Request, cookieJar http.Cookie
 			}
 		}
 	}
+}
+
+func setupHttpClient(req *http.Request, method string, requestHeader map[string]string, cookies []*http.Cookie, cookieJar http.CookieJar, proxy string) (http.Client, error) {
+	// Request Header
+	setRequestHeaders(requestHeader, req)
+
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; MAFSJS; rv:11.0) like Gecko")
+	}
+	if strings.ToLower(method) == "post" && req.Header.Get("Content-Type") == "" {
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	}
+	//req.SetBasicAuth("112233", "445566")
+
+	// Cookie
+	setCookies(cookies, req, cookieJar)
+
+	// 自動リダイレクトのオフ
+	client := http.Client{
+		// Go HTTP Client NOT Follow Redirects Automatically.
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	// プロキシ設定
+	if proxy != "" {
+		proxyURL, err := url.Parse(proxy)
+		if err != nil {
+			return http.Client{}, err
+		}
+		client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyURL)}
+	}
+	// SSL 証明書チェック
+	if InsecureSkipVerify {
+		c := &tls.Config{InsecureSkipVerify: true}
+		if client.Transport == nil {
+			client.Transport = &http.Transport{
+				TLSClientConfig: c,
+			}
+		} else {
+			transport := client.Transport.(*http.Transport)
+			transport.TLSClientConfig = c
+		}
+	}
+	// Cookie 設定
+	if cookieJar != nil {
+		client.Jar = cookieJar
+	}
+	return client, nil
 }
 
 // Post は HTTP POST で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
@@ -109,33 +163,9 @@ func RequestHTTPWithFile(requestURL string, method string, parameters map[string
 		return nil, err
 	}
 
-	// Request Header
-	setRequestHeaders(requestHeader, req)
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; MAFSJS; rv:11.0) like Gecko")
-	}
-	req.Header.Add("Content-Type", w.FormDataContentType())
-	//req.SetBasicAuth("112233", "445566")
-
-	// Cookie
-	setCookies(cookies, req, cookieJar)
-
-	// 自動リダイレクトのオフ、プロキシ設定
-	client := http.Client{
-		// Go HTTP Client NOT Follow Redirects Automatically.
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-	if proxy != "" {
-		proxyURL, err := url.Parse(proxy)
-		if err != nil {
-			return nil, err
-		}
-		client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyURL)}
-	}
-	if cookieJar != nil {
-		client.Jar = cookieJar
+	client, err := setupHttpClient(req, method, requestHeader, cookies, cookieJar, proxy)
+	if err != nil {
+		return nil, err
 	}
 	return client.Do(req)
 }
@@ -177,36 +207,9 @@ func RequestHTTP(requestURL string, method string, parameters map[string]string,
 		}
 	}
 
-	// Request Header
-	setRequestHeaders(requestHeader, req)
-
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; MAFSJS; rv:11.0) like Gecko")
-	}
-	if strings.ToLower(method) == "post" && req.Header.Get("Content-Type") == "" {
-		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	}
-	//req.SetBasicAuth("112233", "445566")
-
-	// Cookie
-	setCookies(cookies, req, cookieJar)
-
-	// 自動リダイレクトのオフ、プロキシ設定
-	client := http.Client{
-		// Go HTTP Client NOT Follow Redirects Automatically.
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-	if proxy != "" {
-		proxyURL, err := url.Parse(proxy)
-		if err != nil {
-			return nil, err
-		}
-		client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyURL)}
-	}
-	if cookieJar != nil {
-		client.Jar = cookieJar
+	client, err := setupHttpClient(req, method, requestHeader, cookies, cookieJar, proxy)
+	if err != nil {
+		return nil, err
 	}
 	return client.Do(req)
 }
