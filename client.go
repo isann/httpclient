@@ -163,6 +163,9 @@ func RequestHTTPWithFile(requestURL string, method string, parameters map[string
 		return nil, err
 	}
 
+	// Add Content-Type multipart/form-data header
+	req.Header.Add("Content-Type", w.FormDataContentType())
+
 	client, err := setupHttpClient(req, method, requestHeader, cookies, cookieJar, proxy)
 	if err != nil {
 		return nil, err
