@@ -129,6 +129,7 @@ func RequestHTTPWithFile(requestURL string, method string, parameters map[string
 	// Add file
 	if files != nil {
 		for _, v := range files {
+			// TODO: CreateFormFile ではなく CreatePart で file の content-type を octet-stream から変更できるようにする
 			fw, err = w.CreateFormFile(v.FieldName, v.FileName)
 			if err != nil {
 				return nil, err
