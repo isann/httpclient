@@ -2,7 +2,7 @@
 This is HTTP Client library.
 
 
-# Getting start
+# Getting started
 Install go module.
 
 ```
