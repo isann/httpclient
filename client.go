@@ -3,9 +3,11 @@ package httpclient
 import (
 	"bytes"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"strings"
 )
@@ -71,9 +73,10 @@ type RequestHeader map[string]string
 
 // AttachFile は HTTP リクエストに添付するファイルです。
 type AttachFile struct {
-	FieldName string
-	FileName  string
-	Reader    io.Reader
+	FieldName   string
+	FileName    string
+	ContentType string
+	Reader      io.Reader
 }
 
 func (c *HttpClient) setRequestHeaders(requestHeader RequestHeader, req *http.Request) {
@@ -159,14 +162,16 @@ func (c *HttpClient) RequestHTTPWithFile(requestURL string, method string, param
 	// Add file
 	if files != nil {
 		for _, v := range files {
-			// TODO: CreateFormFile ではなく CreatePart で file の content-type を octet-stream から変更できるようにする
-			//h := make(textproto.MIMEHeader)
-			//h.Set("Content-Disposition",
-			//	fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-			//		escapeQuotes(v.FieldName), escapeQuotes(v.FileName)))
-			//h.Set("Content-Type", "image/jpeg")
-			//fw, err = w.CreatePart(h)
-			fw, err = w.CreateFormFile(v.FieldName, v.FileName)
+			if v.ContentType == "" {
+				fw, err = w.CreateFormFile(v.FieldName, v.FileName)
+			} else {
+				h := make(textproto.MIMEHeader)
+				h.Set("Content-Disposition",
+					fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+						escapeQuotes(v.FieldName), escapeQuotes(v.FileName)))
+				h.Set("Content-Type", v.ContentType)
+				fw, err = w.CreatePart(h)
+			}
 			if err != nil {
 				return nil, err
 			}
