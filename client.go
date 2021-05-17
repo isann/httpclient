@@ -96,10 +96,7 @@ func (c *HttpClient) setCookies(cookies []*http.Cookie, req *http.Request, cooki
 	}
 }
 
-func (c *HttpClient) setupHttpClient(req *http.Request, method string, requestHeader RequestHeader, cookies []*http.Cookie, cookieJar http.CookieJar, proxy string) (http.Client, error) {
-	// Request Header
-	c.setRequestHeaders(requestHeader, req)
-
+func (c *HttpClient) setDefaultRequestHeaders(req *http.Request, method string) {
 	if req.Header.Get("User-Agent") == "" {
 		req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; MAFSJS; rv:11.0) like Gecko")
 	}
@@ -107,10 +104,9 @@ func (c *HttpClient) setupHttpClient(req *http.Request, method string, requestHe
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 	//req.SetBasicAuth("112233", "445566")
+}
 
-	// Cookie
-	c.setCookies(cookies, req, cookieJar)
-
+func (c *HttpClient) setupHttpClient(cookieJar http.CookieJar, proxy string) (http.Client, error) {
 	// 自動リダイレクトのオフ
 	client := http.Client{
 		// Go HTTP Client NOT Follow Redirects Automatically.
@@ -207,7 +203,12 @@ func (c *HttpClient) RequestHTTPWithFile(requestURL string, method string, param
 	// Add Content-Type multipart/form-data header
 	req.Header.Add("Content-Type", w.FormDataContentType())
 
-	client, err := c.setupHttpClient(req, method, requestHeader, cookies, cookieJar, proxy)
+	// Request Header
+	c.setRequestHeaders(requestHeader, req)
+	c.setDefaultRequestHeaders(req, method)
+	// Cookie
+	c.setCookies(cookies, req, cookieJar)
+	client, err := c.setupHttpClient(cookieJar, proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +252,12 @@ func (c *HttpClient) RequestHTTP(requestURL string, method string, parameters Pa
 		}
 	}
 
-	client, err := c.setupHttpClient(req, method, requestHeader, cookies, cookieJar, proxy)
+	// Request Header
+	c.setRequestHeaders(requestHeader, req)
+	c.setDefaultRequestHeaders(req, method)
+	// Cookie
+	c.setCookies(cookies, req, cookieJar)
+	client, err := c.setupHttpClient(cookieJar, proxy)
 	if err != nil {
 		return nil, err
 	}
