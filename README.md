@@ -6,18 +6,32 @@ This is HTTP Client library.
 Install go module.
 
 ```
-go get github.com/isann/httpclient
+go get github.com/isann/httpclient/v2
 ```
 
 # Usage
 ## GET
 ```
-// WIP
+client := &httpclient.HttpClient{}
+client.Url = "https://aaaaa:bbbbb@foobar/path/to/"
+client.Parameters = map[string]string{"a": "1", "b": "2"}
+response, err := client.Get()
+if err != nil {
+    return
+}
 ```
 
 ## POST（application/x-www-form-urlencoded）
 ```
-// WIP
+client := &httpclient.HttpClient{}
+client.Url = "https://aaaaa:bbbbb@foobar/path/to/"
+client.Parameters = map[string]string{"a": "1", "b": "2"}
+client.CookieJar = nil
+client.Proxy = "http://localhost:8888/"
+response, err := client.Post()
+if err != nil {
+    return
+}
 ```
 
 ## POST (REST API, application/json)
@@ -25,23 +39,21 @@ go get github.com/isann/httpclient
 m := map[string]interface{}{
     "param1": "value1",
     "param2": "value2",
+    "param3": "value3",
 }
 decodeJson, err := json.Marshal(m)
 if err != nil {
     return
 }
-_, err = httpclient.RequestHTTP(
-    "https://foobar/user",
-    "POST",
-    nil,
-    []*http.Cookie{},
-    map[string]string{
-        "Content-Type":  "application/json",
-        "Authorization": "Bearer xxxxxxxxxxxx",
-    },
-    decodeJson,
-    nil,
-    "")
+client := &httpclient.HttpClient{}
+client.Url = "https://aaaaa:bbbbb@foobar/path/to/"
+client.Headers = map[string]string{
+    "Content-Type":  "application/json",
+    "Authorization": "Bearer xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+}
+client.RawData = decodeJson
+client.Proxy = ""
+response, err := client.Post()
 if err != nil {
     return
 }
@@ -52,17 +64,16 @@ if err != nil {
 ```
 file, err := os.Open("/path/to/binary-file")
 if err != nil {
-    return
+    panic(err)
 }
-_, err = httpclient.RequestHTTPWithFile(
-    "https://foobar/user/icon",
-    "POST",
-    map[string]string{"param1": "value1", "param2": "value2", "param3": "value3"},
-    []*http.Cookie{},
-    map[string]string{},
-    []httpclient.AttachFile{{"file", "foobar.jpg", file}},
-    nil,
-    "")
+attachFiles := []AttachFile{{"file001", "00BFFF.jpg", file}}
+client := &httpclient.HttpClient{}
+client.Url = "https://aaaaa:bbbbb@foobar/path/to/"
+client.Parameters = map[string]string{"a": "aaa",}
+client.Files = attachFiles
+client.CookieJar = nil
+client.Proxy = ""
+response, err := client.Post()
 if err != nil {
     return
 }

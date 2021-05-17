@@ -10,6 +10,65 @@ import (
 	"strings"
 )
 
+type HttpClient struct {
+	Url                string
+	Parameters         Parameters
+	Cookies            []*http.Cookie
+	Headers            RequestHeader
+	RawData            []byte
+	Files              []AttachFile
+	CookieJar          http.CookieJar
+	Proxy              string
+	InsecureSkipVerify bool
+}
+
+func (c *HttpClient) Clear() {
+	c.Url = ""
+	c.Parameters = nil
+	c.Cookies = nil
+	c.Headers = nil
+	c.RawData = nil
+	c.Files = []AttachFile{}
+	c.CookieJar = nil
+	c.Proxy = ""
+}
+
+// Post は HTTP POST で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
+// rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
+// ファイルを添付した場合は、「multipart/form-data」 となり、 rawData は参照されません。
+func (c *HttpClient) Post() (*http.Response, error) {
+	if c.Files == nil || len(c.Files) == 0 {
+		return c.RequestHTTP(c.Url, "POST", c.Parameters, c.Cookies, c.Headers, c.RawData, c.CookieJar, c.Proxy)
+	} else {
+		return c.RequestHTTPWithFile(c.Url, "POST", c.Parameters, c.Cookies, c.Headers, c.Files, c.CookieJar, c.Proxy)
+	}
+}
+
+// Get は HTTP GET で送信します。  rawData は無視され、parameters の値が query string に変換されます。
+func (c *HttpClient) Get() (*http.Response, error) {
+	return c.RequestHTTP(c.Url, "GET", c.Parameters, c.Cookies, c.Headers, c.RawData, c.CookieJar, c.Proxy)
+}
+
+// Put は HTTP PUT で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
+// rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
+func (c *HttpClient) Put() (*http.Response, error) {
+	return c.RequestHTTP(c.Url, "PUT", c.Parameters, c.Cookies, c.Headers, c.RawData, c.CookieJar, c.Proxy)
+}
+
+// Delete は HTTP DELETE で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
+// rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
+func (c *HttpClient) Delete() (*http.Response, error) {
+	return c.RequestHTTP(c.Url, "DELETE", c.Parameters, c.Cookies, c.Headers, c.RawData, c.CookieJar, c.Proxy)
+}
+
+type Parameters map[string]string
+
+// TODO: GET と POST のパラメータは分離する
+//type GetParameters map[string]string
+//type PostParameters map[string]string
+
+type RequestHeader map[string]string
+
 // AttachFile は HTTP リクエストに添付するファイルです。
 type AttachFile struct {
 	FieldName string
@@ -17,11 +76,7 @@ type AttachFile struct {
 	Reader    io.Reader
 }
 
-var (
-	InsecureSkipVerify bool
-)
-
-func setRequestHeaders(requestHeader map[string]string, req *http.Request) {
+func (c *HttpClient) setRequestHeaders(requestHeader RequestHeader, req *http.Request) {
 	if requestHeader != nil {
 		for key, val := range requestHeader {
 			req.Header.Add(key, val)
@@ -29,7 +84,7 @@ func setRequestHeaders(requestHeader map[string]string, req *http.Request) {
 	}
 }
 
-func setCookies(cookies []*http.Cookie, req *http.Request, cookieJar http.CookieJar) {
+func (c *HttpClient) setCookies(cookies []*http.Cookie, req *http.Request, cookieJar http.CookieJar) {
 	if cookies != nil {
 		if cookieJar != nil {
 			cookieJar.SetCookies(req.URL, cookies)
@@ -41,9 +96,9 @@ func setCookies(cookies []*http.Cookie, req *http.Request, cookieJar http.Cookie
 	}
 }
 
-func setupHttpClient(req *http.Request, method string, requestHeader map[string]string, cookies []*http.Cookie, cookieJar http.CookieJar, proxy string) (http.Client, error) {
+func (c *HttpClient) setupHttpClient(req *http.Request, method string, requestHeader RequestHeader, cookies []*http.Cookie, cookieJar http.CookieJar, proxy string) (http.Client, error) {
 	// Request Header
-	setRequestHeaders(requestHeader, req)
+	c.setRequestHeaders(requestHeader, req)
 
 	if req.Header.Get("User-Agent") == "" {
 		req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; MAFSJS; rv:11.0) like Gecko")
@@ -54,7 +109,7 @@ func setupHttpClient(req *http.Request, method string, requestHeader map[string]
 	//req.SetBasicAuth("112233", "445566")
 
 	// Cookie
-	setCookies(cookies, req, cookieJar)
+	c.setCookies(cookies, req, cookieJar)
 
 	// 自動リダイレクトのオフ
 	client := http.Client{
@@ -72,7 +127,7 @@ func setupHttpClient(req *http.Request, method string, requestHeader map[string]
 		client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyURL)}
 	}
 	// SSL 証明書チェック
-	if InsecureSkipVerify {
+	if c.InsecureSkipVerify {
 		c := &tls.Config{InsecureSkipVerify: true}
 		if client.Transport == nil {
 			client.Transport = &http.Transport{
@@ -90,37 +145,16 @@ func setupHttpClient(req *http.Request, method string, requestHeader map[string]
 	return client, nil
 }
 
-// Post は HTTP POST で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
-// rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
-// ファイルを添付した場合は、「multipart/form-data」 となり、 rawData は参照されません。
-func Post(requestURL string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, files []AttachFile, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
-	if files == nil {
-		return RequestHTTP(requestURL, "post", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
-	}
-	return RequestHTTPWithFile(requestURL, "post", parameters, cookies, requestHeader, files, cookieJar, proxy)
-}
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
 
-// Get は HTTP GET で送信します。  rawData は無視され、parameters の値が query string に変換されます。
-func Get(requestURL string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
-	return RequestHTTP(requestURL, "get", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
-}
-
-// Put は HTTP PUT で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
-// rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
-func Put(requestURL string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
-	return RequestHTTP(requestURL, "put", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
-}
-
-// Delete は HTTP DELETE で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
-// rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
-func Delete(requestURL string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
-	return RequestHTTP(requestURL, "delete", parameters, cookies, requestHeader, rawData, cookieJar, proxy)
+func escapeQuotes(s string) string {
+	return quoteEscaper.Replace(s)
 }
 
 // RequestHTTPWithFile はマルチパートフォームデータ「multipart/form-data」で送信します。画像をリクエストする場合などに使用します。
 // parameters と rawData は互いに排他的で、 rawData が優先されます。
 // rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
-func RequestHTTPWithFile(requestURL string, method string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, files []AttachFile, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+func (c *HttpClient) RequestHTTPWithFile(requestURL string, method string, parameters Parameters, cookies []*http.Cookie, requestHeader RequestHeader, files []AttachFile, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
 	var b bytes.Buffer
 	var fw io.Writer
 	var err error
@@ -130,6 +164,12 @@ func RequestHTTPWithFile(requestURL string, method string, parameters map[string
 	if files != nil {
 		for _, v := range files {
 			// TODO: CreateFormFile ではなく CreatePart で file の content-type を octet-stream から変更できるようにする
+			//h := make(textproto.MIMEHeader)
+			//h.Set("Content-Disposition",
+			//	fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+			//		escapeQuotes(v.FieldName), escapeQuotes(v.FileName)))
+			//h.Set("Content-Type", "image/jpeg")
+			//fw, err = w.CreatePart(h)
 			fw, err = w.CreateFormFile(v.FieldName, v.FileName)
 			if err != nil {
 				return nil, err
@@ -167,7 +207,7 @@ func RequestHTTPWithFile(requestURL string, method string, parameters map[string
 	// Add Content-Type multipart/form-data header
 	req.Header.Add("Content-Type", w.FormDataContentType())
 
-	client, err := setupHttpClient(req, method, requestHeader, cookies, cookieJar, proxy)
+	client, err := c.setupHttpClient(req, method, requestHeader, cookies, cookieJar, proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +218,7 @@ func RequestHTTPWithFile(requestURL string, method string, parameters map[string
 // フォームを送信する場合などに使用します。
 // parameters と rawData は互いに排他的で、 rawData が優先されます。
 // rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
-func RequestHTTP(requestURL string, method string, parameters map[string]string, cookies []*http.Cookie, requestHeader map[string]string, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+func (c *HttpClient) RequestHTTP(requestURL string, method string, parameters Parameters, cookies []*http.Cookie, requestHeader RequestHeader, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
 	var req *http.Request
 	var err error
 	var data io.Reader
@@ -211,7 +251,7 @@ func RequestHTTP(requestURL string, method string, parameters map[string]string,
 		}
 	}
 
-	client, err := setupHttpClient(req, method, requestHeader, cookies, cookieJar, proxy)
+	client, err := c.setupHttpClient(req, method, requestHeader, cookies, cookieJar, proxy)
 	if err != nil {
 		return nil, err
 	}
