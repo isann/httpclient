@@ -14,6 +14,7 @@ import (
 
 type HttpClient struct {
 	Url                string
+	Method             string
 	Parameters         Parameters
 	Cookies            []*http.Cookie
 	Headers            RequestHeader
@@ -39,28 +40,32 @@ func (c *HttpClient) Clear() {
 // rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
 // ファイルを添付した場合は、「multipart/form-data」 となり、 rawData は参照されません。
 func (c *HttpClient) Post() (*http.Response, error) {
+	c.Method = "POST"
 	if c.Files == nil || len(c.Files) == 0 {
-		return c.RequestHTTP(c.Url, "POST", c.Parameters, c.Cookies, c.Headers, c.RawData, c.CookieJar, c.Proxy)
+		return c.RequestHTTP()
 	} else {
-		return c.RequestHTTPWithFile(c.Url, "POST", c.Parameters, c.Cookies, c.Headers, c.Files, c.CookieJar, c.Proxy)
+		return c.RequestHTTPWithFile()
 	}
 }
 
 // Get は HTTP GET で送信します。  rawData は無視され、parameters の値が query string に変換されます。
 func (c *HttpClient) Get() (*http.Response, error) {
-	return c.RequestHTTP(c.Url, "GET", c.Parameters, c.Cookies, c.Headers, c.RawData, c.CookieJar, c.Proxy)
+	c.Method = "GET"
+	return c.RequestHTTP()
 }
 
 // Put は HTTP PUT で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
 // rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
 func (c *HttpClient) Put() (*http.Response, error) {
-	return c.RequestHTTP(c.Url, "PUT", c.Parameters, c.Cookies, c.Headers, c.RawData, c.CookieJar, c.Proxy)
+	c.Method = "PUT"
+	return c.RequestHTTP()
 }
 
 // Delete は HTTP DELETE で送信します。 parameters と rawData は互いに排他的で、 rawData が優先されます。
 // rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
 func (c *HttpClient) Delete() (*http.Response, error) {
-	return c.RequestHTTP(c.Url, "DELETE", c.Parameters, c.Cookies, c.Headers, c.RawData, c.CookieJar, c.Proxy)
+	c.Method = "DELETE"
+	return c.RequestHTTP()
 }
 
 type Parameters map[string]string
@@ -153,15 +158,15 @@ func escapeQuotes(s string) string {
 // RequestHTTPWithFile はマルチパートフォームデータ「multipart/form-data」で送信します。画像をリクエストする場合などに使用します。
 // parameters と rawData は互いに排他的で、 rawData が優先されます。
 // rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
-func (c *HttpClient) RequestHTTPWithFile(requestURL string, method string, parameters Parameters, cookies []*http.Cookie, requestHeader RequestHeader, files []AttachFile, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+func (c *HttpClient) RequestHTTPWithFile() (*http.Response, error) {
 	var b bytes.Buffer
 	var fw io.Writer
 	var err error
 	w := multipart.NewWriter(&b)
 
 	// Add file
-	if files != nil {
-		for _, v := range files {
+	if c.Files != nil {
+		for _, v := range c.Files {
 			if v.ContentType == "" {
 				fw, err = w.CreateFormFile(v.FieldName, v.FileName)
 			} else {
@@ -181,8 +186,8 @@ func (c *HttpClient) RequestHTTPWithFile(requestURL string, method string, param
 		}
 	}
 	// Add the other fields
-	if parameters != nil {
-		for key, val := range parameters {
+	if c.Parameters != nil {
+		for key, val := range c.Parameters {
 			if fw, err = w.CreateFormField(key); err != nil {
 				return nil, err
 			}
@@ -200,7 +205,7 @@ func (c *HttpClient) RequestHTTPWithFile(requestURL string, method string, param
 	}
 
 	// Request を生成
-	req, err := http.NewRequest(method, requestURL, &b)
+	req, err := http.NewRequest(c.Method, c.Url, &b)
 	if err != nil {
 		return nil, err
 	}
@@ -209,11 +214,11 @@ func (c *HttpClient) RequestHTTPWithFile(requestURL string, method string, param
 	req.Header.Add("Content-Type", w.FormDataContentType())
 
 	// Request Header
-	c.setRequestHeaders(requestHeader, req)
-	c.setDefaultRequestHeaders(req, method)
+	c.setRequestHeaders(c.Headers, req)
+	c.setDefaultRequestHeaders(req, c.Method)
 	// Cookie
-	c.setCookies(cookies, req, cookieJar)
-	client, err := c.setupHttpClient(cookieJar, proxy)
+	c.setCookies(c.Cookies, req, c.CookieJar)
+	client, err := c.setupHttpClient(c.CookieJar, c.Proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -224,45 +229,45 @@ func (c *HttpClient) RequestHTTPWithFile(requestURL string, method string, param
 // フォームを送信する場合などに使用します。
 // parameters と rawData は互いに排他的で、 rawData が優先されます。
 // rawData は、「application/x-www-form-urlencoded」以外でリクエストする際に指定します。
-func (c *HttpClient) RequestHTTP(requestURL string, method string, parameters Parameters, cookies []*http.Cookie, requestHeader RequestHeader, rawData []byte, cookieJar http.CookieJar, proxy string) (*http.Response, error) {
+func (c *HttpClient) RequestHTTP() (*http.Response, error) {
 	var req *http.Request
 	var err error
 	var data io.Reader
 	values := url.Values{}
-	if rawData != nil {
-		data = bytes.NewReader(rawData)
+	if c.RawData != nil {
+		data = bytes.NewReader(c.RawData)
 	} else {
-		if parameters != nil {
-			for key, val := range parameters {
+		if c.Parameters != nil {
+			for key, val := range c.Parameters {
 				values.Add(key, val)
 			}
 		}
 		data = strings.NewReader(values.Encode())
 	}
-	if strings.ToLower(method) == "post" {
-		req, err = http.NewRequest("POST", requestURL, data)
+	if strings.ToLower(c.Method) == "post" {
+		req, err = http.NewRequest("POST", c.Url, data)
 		if err != nil {
 			return nil, err
 		}
-	} else if strings.ToLower(method) == "get" {
-		req, err = http.NewRequest("GET", requestURL, nil)
+	} else if strings.ToLower(c.Method) == "get" {
+		req, err = http.NewRequest("GET", c.Url, nil)
 		if err != nil {
 			return nil, err
 		}
 		req.URL.RawQuery = values.Encode()
 	} else {
-		req, err = http.NewRequest(strings.ToUpper(method), requestURL, data)
+		req, err = http.NewRequest(strings.ToUpper(c.Method), c.Url, data)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Request Header
-	c.setRequestHeaders(requestHeader, req)
-	c.setDefaultRequestHeaders(req, method)
+	c.setRequestHeaders(c.Headers, req)
+	c.setDefaultRequestHeaders(req, c.Method)
 	// Cookie
-	c.setCookies(cookies, req, cookieJar)
-	client, err := c.setupHttpClient(cookieJar, proxy)
+	c.setCookies(c.Cookies, req, c.CookieJar)
+	client, err := c.setupHttpClient(c.CookieJar, c.Proxy)
 	if err != nil {
 		return nil, err
 	}
