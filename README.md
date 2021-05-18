@@ -9,6 +9,14 @@ Install go module.
 go get github.com/isann/httpclient/v2
 ```
 
+## Old version
+
+### v1
+```
+go get github.com/isann/httpclient
+```
+
+
 # Usage
 ## GET
 ```
