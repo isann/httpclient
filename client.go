@@ -16,6 +16,7 @@ type HttpClient struct {
 	Url                string
 	Method             string
 	Parameters         Parameters
+	GetParameters      Parameters
 	Cookies            []*http.Cookie
 	Headers            RequestHeader
 	RawData            []byte
@@ -210,6 +211,12 @@ func (c *HttpClient) RequestHTTPWithFile() (*http.Response, error) {
 		return nil, err
 	}
 
+	// Add GET Parameters
+	if c.GetParameters != nil || len(c.GetParameters) > 0 {
+		getValues := c.urlValues(c.GetParameters)
+		req.URL.RawQuery = getValues.Encode()
+	}
+
 	// Add Content-Type multipart/form-data header
 	req.Header.Add("Content-Type", w.FormDataContentType())
 
@@ -233,16 +240,13 @@ func (c *HttpClient) RequestHTTP() (*http.Response, error) {
 	var req *http.Request
 	var err error
 	var data io.Reader
-	values := url.Values{}
 	if c.RawData != nil {
 		data = bytes.NewReader(c.RawData)
 	} else {
 		if c.Parameters != nil {
-			for key, val := range c.Parameters {
-				values.Add(key, val)
-			}
+			values := c.urlValues(c.Parameters)
+			data = strings.NewReader(values.Encode())
 		}
-		data = strings.NewReader(values.Encode())
 	}
 	if strings.ToLower(c.Method) == "post" {
 		req, err = http.NewRequest("POST", c.Url, data)
@@ -254,12 +258,17 @@ func (c *HttpClient) RequestHTTP() (*http.Response, error) {
 		if err != nil {
 			return nil, err
 		}
-		req.URL.RawQuery = values.Encode()
 	} else {
 		req, err = http.NewRequest(strings.ToUpper(c.Method), c.Url, data)
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	// Add GET Parameters
+	if c.GetParameters != nil || len(c.GetParameters) > 0 {
+		getValues := c.urlValues(c.GetParameters)
+		req.URL.RawQuery = getValues.Encode()
 	}
 
 	// Request Header
@@ -272,4 +281,12 @@ func (c *HttpClient) RequestHTTP() (*http.Response, error) {
 		return nil, err
 	}
 	return client.Do(req)
+}
+
+func (c *HttpClient) urlValues(parameters Parameters) url.Values {
+	values := url.Values{}
+	for key, val := range parameters {
+		values.Add(key, val)
+	}
+	return values
 }
