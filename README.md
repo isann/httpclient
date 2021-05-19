@@ -22,7 +22,7 @@ go get github.com/isann/httpclient
 ```
 client := &httpclient.HttpClient{}
 client.Url = "https://aaaaa:bbbbb@foobar/path/to/"
-client.Parameters = map[string]string{"a": "1", "b": "2"}
+client.GetParameters = map[string]string{"a": "1", "b": "2"}
 response, err := client.Get()
 if err != nil {
     return
