@@ -1,4 +1,4 @@
-module github.com/isann/httpclient
+module github.com/isann/httpclient/v2
 
 go 1.16
 
